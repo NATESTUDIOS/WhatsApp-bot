@@ -12,17 +12,19 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Create WhatsApp client
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
   }
 });
 
 let qrCodeImage = null;
-let isReady = false;
+let isClientReady = false;
 
+// WhatsApp events
 client.on('qr', async (qr) => {
   console.log('QR RECEIVED');
   qrCodeImage = await qrcode.toDataURL(qr);
@@ -31,69 +33,82 @@ client.on('qr', async (qr) => {
 client.on('ready', () => {
   console.log('✅ WhatsApp bot is ready!');
   qrCodeImage = null;
-  isReady = true;
+  isClientReady = true;
 });
 
 client.initialize();
 
+// Routes
 app.get('/', (req, res) => {
-  if (isReady) {
-    res.redirect('/dashboard');
-  } else {
-    res.render('index', { qr: qrCodeImage });
-  }
+  res.render('index', { qr: qrCodeImage });
 });
 
 app.get('/dashboard', (req, res) => {
+  if (!isClientReady) {
+    return res.send('⏳ WhatsApp client is not ready yet. Scan the QR code on the home page first.');
+  }
   res.render('dashboard');
 });
 
-// Send message to any number
+// Send message to number
 app.post('/send-message', async (req, res) => {
-  const number = req.body.number.replace(/\D/g, '') + '@c.us';
-  const message = req.body.message;
+  if (!isClientReady) return res.send('❌ WhatsApp client is not ready.');
+
+  const { number, message } = req.body;
+  const chatId = number.replace(/\D/g, '') + '@c.us';
 
   try {
-    await client.sendMessage(number, message);
-    res.send('<h3>✅ Message sent!</h3><a href="/dashboard">Back</a>');
+    await client.sendMessage(chatId, message);
+    res.send('✅ Message sent successfully.');
   } catch (err) {
-    res.send(`<h3>❌ Error: ${err.message}</h3><a href="/dashboard">Back</a>`);
+    console.error('Send Error:', err);
+    res.send('❌ Failed to send message.');
   }
 });
 
-// Get list of groups
+// List groups
 app.get('/groups', async (req, res) => {
-  const chats = await client.getChats();
-  const groups = chats.filter(chat => chat.isGroup);
+  if (!isClientReady) return res.send('❌ WhatsApp client is not ready.');
 
-  let html = '<h2>Groups</h2><ul>';
-  for (const group of groups) {
-    html += `<li>${group.name} - <form method="POST" action="/tag-group" style="display:inline;">
-      <input type="hidden" name="groupId" value="${group.id._serialized}" />
-      <button>Tag All</button>
-    </form></li>`;
+  try {
+    const chats = await client.getChats();
+    const groups = chats.filter(chat => chat.isGroup);
+
+    let html = '<h1>My WhatsApp Groups</h1>';
+    groups.forEach(group => {
+      html += `<p><b>${group.name}</b>
+        <form method="POST" action="/tag-all" style="display:inline;">
+          <input type="hidden" name="groupId" value="${group.id._serialized}">
+          <button type="submit">Tag All</button>
+        </form></p>`;
+    });
+
+    res.send(html);
+  } catch (err) {
+    console.error('Group List Error:', err);
+    res.send('❌ Failed to fetch groups.');
   }
-  html += '</ul><a href="/dashboard">Back</a>';
-  res.send(html);
 });
 
-// Tag everyone in a group
-app.post('/tag-group', async (req, res) => {
+// Tag all members in group
+app.post('/tag-all', async (req, res) => {
+  if (!isClientReady) return res.send('❌ WhatsApp client is not ready.');
+
   const groupId = req.body.groupId;
-  const chat = await client.getChatById(groupId);
+  try {
+    const chat = await client.getChatById(groupId);
+    const mentions = chat.participants.map(p => p.id);
+    const text = mentions.map(p => `@${p.user}`).join(' ');
 
-  if (!chat.isGroup) return res.send('❌ Not a group');
-
-  let mentions = [];
-  for (let participant of chat.participants) {
-    mentions.push(`@${participant.id.user}`);
+    await chat.sendMessage(text, { mentions });
+    res.send('✅ Tagged all group members.');
+  } catch (err) {
+    console.error('Tag Error:', err);
+    res.send('❌ Failed to tag members.');
   }
-
-  const message = mentions.join(' ');
-  await chat.sendMessage(message);
-  res.send('<h3>✅ Tagged everyone!</h3><a href="/dashboard">Back</a>');
 });
 
+// Start server
 app.listen(port, () => {
   console.log(`🌐 Server running on http://localhost:${port}`);
 });
