@@ -1,64 +1,50 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode');
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
+const express = require("express");
+const { Client, LocalAuth } = require("whatsapp-web.js");
+const qrcode = require("qrcode");
+const path = require("path");
 
-const client = new Client({ authStrategy: new LocalAuth() });
 const app = express();
-app.use(express.json());
+const port = process.env.PORT || 3000;
 
-let lastGroup = null;
-let qrImageData = null;
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
+app.use(express.static("public"));
 
-client.on('qr', async (qr) => {
-  qrImageData = await qrcode.toDataURL(qr);
-  console.log('QR code generated. Open /qr in browser to scan.');
+const client = new Client({
+    authStrategy: new LocalAuth()
 });
 
-client.on('ready', () => {
-  console.log('WhatsApp bot is ready');
+let qrCode = "";
+let isReady = false;
+
+client.on("qr", async (qr) => {
+    qrCode = await qrcode.toDataURL(qr);
+    isReady = false;
+    console.log("QR RECEIVED");
 });
 
-client.on('message', async (msg) => {
-  if (msg.body === '@all' && msg.from.includes('@g.us')) {
-    const chat = await msg.getChat();
-    lastGroup = chat;
-
-    let text = 'Tagging everyone:\n';
-    let mentions = [];
-
-    for (let participant of chat.participants) {
-      const contact = await client.getContactById(participant.id._serialized);
-      mentions.push(contact);
-      text += `@${contact.number} `;
-    }
-
-    await chat.sendMessage(text, { mentions });
-  }
-});
-
-app.get('/', (_, res) => {
-  res.sendFile(path.join(__dirname, 'dashboard.html'));
-});
-
-app.get('/qr', (req, res) => {
-  if (!qrImageData) return res.send('QR code not ready. Please wait...');
-  res.send(`
-    <html><body>
-      <h3>Scan QR with WhatsApp</h3>
-      <img src="${qrImageData}" />
-    </body></html>
-  `);
-});
-
-app.post('/send', async (req, res) => {
-  const { message } = req.body;
-  if (!lastGroup) return res.status(400).send('No group cached');
-  await lastGroup.sendMessage(message);
-  res.send('Sent');
+client.on("ready", () => {
+    console.log("Client is ready!");
+    isReady = true;
+    qrCode = "";
 });
 
 client.initialize();
 
-app.listen(3000, () => console.log('Dashboard running on http://localhost:3000'));
+app.get("/", (req, res) => {
+    res.render("dashboard", { qrCode, isReady });
+});
+
+app.get("/tagall", async (req, res) => {
+    const chat = await client.getChats();
+    const group = chat.find(c => c.isGroup);
+    if (!group) return res.send("No group found.");
+
+    const mentions = group.participants.map(p => p.id._serialized);
+    client.sendMessage(group.id._serialized, `@everyone`, { mentions });
+    res.send("Tagged all members!");
+});
+
+app.listen(port, () => {
+    console.log(`Server is running on http://localhost:${port}`);
+});
