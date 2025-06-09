@@ -7,15 +7,18 @@ const bodyParser = require('body-parser');
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Setup view engine and static folder
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// WhatsApp bot state
 let qrCodeImage = null;
 let ready = false;
 let chatGroups = [];
 
+// Initialize WhatsApp client
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
@@ -25,50 +28,52 @@ const client = new Client({
 });
 
 client.on('qr', async (qr) => {
-  console.log('QR RECEIVED');
+  console.log('📸 QR received');
   qrCodeImage = await qrcode.toDataURL(qr);
   ready = false;
 });
 
 client.on('ready', async () => {
-  console.log('✅ WhatsApp bot is ready!');
+  console.log('✅ WhatsApp client is ready');
   ready = true;
   qrCodeImage = null;
 
-  // Load groups
   const chats = await client.getChats();
   chatGroups = chats.filter(chat => chat.isGroup).map(chat => chat.name);
 });
 
-// Start client
 client.initialize();
 
-// Routes
+// ROUTES
+
+// Root: Show QR or redirect to dashboard
 app.get('/', (req, res) => {
-  if (qrCodeImage) {
-    res.send(`<img src="${qrCodeImage}" />`);
+  if (!ready) {
+    res.render('index', { qr: qrCodeImage, ready });
   } else {
     res.redirect('/dashboard');
   }
 });
 
+// Dashboard
 app.get('/dashboard', (req, res) => {
-  res.render('dashboard', { qr: qrCodeImage, ready, groups: chatGroups });
+  if (!ready) return res.redirect('/');
+  res.render('dashboard', { groups: chatGroups });
 });
 
-// Send to number
+// Send individual message
 app.post('/send-message', async (req, res) => {
   const { number, message } = req.body;
   try {
     await client.sendMessage(`${number}@c.us`, message);
     res.redirect('/dashboard');
   } catch (err) {
-    console.error('Send error:', err);
-    res.send('❌ Failed to send message.');
+    console.error('❌ Failed to send message:', err);
+    res.send('Failed to send message.');
   }
 });
 
-// Send to group
+// Send message to group
 app.post('/send-group-message', async (req, res) => {
   const { groupName, message } = req.body;
   const group = (await client.getChats()).find(c => c.isGroup && c.name === groupName);
@@ -80,7 +85,7 @@ app.post('/send-group-message', async (req, res) => {
   }
 });
 
-// Tag all members
+// Tag all group members
 app.post('/tag-group', async (req, res) => {
   const { groupName, message } = req.body;
   const group = (await client.getChats()).find(c => c.isGroup && c.name === groupName);
@@ -96,5 +101,5 @@ app.post('/tag-group', async (req, res) => {
 
 // Start server
 app.listen(port, () => {
-  console.log(`🌐 Server running at http://localhost:${port}`);
+  console.log(`🚀 Server is running at http://localhost:${port}`);
 });
