@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WhatsApp Bot Login</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 50px;
+    }
+    img {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Scan the QR code with WhatsApp</h1>
+  <% if (qr) { %>
+    <img src="<%= qr %>" alt="QR Code" />
+  <% } else { %>
+    <p>Bot is ready or QR expired.</p>
+  <% } %>
+</body>
+</html>
