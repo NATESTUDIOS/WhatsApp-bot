@@ -22,9 +22,14 @@
       font-size: 1.5rem;
       color: green;
     }
+    #timer {
+      font-size: 1.1rem;
+      color: #444;
+      margin-top: 1rem;
+    }
   </style>
   <% if (qr) { %>
-    <meta http-equiv="refresh" content="5">
+    <meta http-equiv="refresh" content="65">
   <% } %>
 </head>
 <body>
@@ -34,6 +39,19 @@
     <% if (qr) { %>
       <p>Scan the QR Code to log in:</p>
       <img src="<%= qr %>" alt="QR Code" />
+      <p id="timer">QR expires in <span id="seconds">60</span> seconds</p>
+      <script>
+        let secs = 60;
+        const timerSpan = document.getElementById('seconds');
+        const interval = setInterval(() => {
+          secs--;
+          timerSpan.textContent = secs;
+          if (secs <= 0) {
+            clearInterval(interval);
+            document.getElementById('timer').textContent = 'QR expired. Refreshing...';
+          }
+        }, 1000);
+      </script>
     <% } else { %>
       <p class="connected">✅ WhatsApp is connected!</p>
     <% } %>
