@@ -2,37 +2,41 @@
 <html>
 <head>
   <title>WhatsApp Bot Dashboard</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: sans-serif; text-align: center; padding: 2rem; background: #f7f7f7; }
-    h1 { margin-bottom: 0.5rem; }
-    img { max-width: 300px; margin: 1rem auto; }
-    form { margin-top: 1rem; }
-    select, button { padding: 0.5rem; font-size: 1rem; }
+    body {
+      font-family: sans-serif;
+      background: #f4f4f4;
+      text-align: center;
+      padding: 2rem;
+    }
+    .qr-container {
+      margin-top: 2rem;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+    .connected {
+      font-size: 1.5rem;
+      color: green;
+    }
   </style>
+  <% if (qr) { %>
+    <meta http-equiv="refresh" content="5">
+  <% } %>
 </head>
 <body>
-  <h1>🤖 WhatsApp Bot Dashboard</h1>
+  <h1>📲 WhatsApp Bot</h1>
 
-  <% if (!isReady) { %>
-    <p>Scan this QR code to log in:</p>
+  <div class="qr-container">
     <% if (qr) { %>
+      <p>Scan the QR Code to log in:</p>
       <img src="<%= qr %>" alt="QR Code" />
     <% } else { %>
-      <p>Loading QR code...</p>
+      <p class="connected">✅ WhatsApp is connected!</p>
     <% } %>
-  <% } else { %>
-    <p><strong>✅ WhatsApp is ready!</strong></p>
-
-    <form action="/tag" method="POST">
-      <label for="groupId">Select a group:</label>
-      <select name="groupId" required>
-        <% groups.forEach(group => { %>
-          <option value="<%= group.id %>"><%= group.name %></option>
-        <% }); %>
-      </select>
-      <br><br>
-      <button type="submit">📢 Tag Everyone</button>
-    </form>
-  <% } %>
+  </div>
 </body>
 </html>
