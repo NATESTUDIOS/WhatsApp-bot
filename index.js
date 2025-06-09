@@ -8,9 +8,9 @@ const port = process.env.PORT || 3000;
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public'));
+app.use(express.urlencoded({ extended: true }));
 
-// Create WhatsApp client
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
@@ -21,37 +21,59 @@ const client = new Client({
 
 let qrCodeImage = null;
 let isReady = false;
+let chats = [];
 
+// WhatsApp Events
 client.on('qr', async (qr) => {
-  console.log('📷 QR code received');
+  console.log('📷 QR RECEIVED');
   qrCodeImage = await qrcode.toDataURL(qr);
   isReady = false;
 });
 
-client.on('ready', () => {
+client.on('ready', async () => {
   console.log('✅ WhatsApp bot is ready!');
   qrCodeImage = null;
   isReady = true;
+  chats = await client.getChats();
 });
 
-client.on('auth_failure', msg => {
-  console.error('❌ Authentication failed:', msg);
+// Web routes
+app.get('/', async (req, res) => {
+  const groupChats = chats.filter(c => c.isGroup);
+  res.render('index', {
+    qr: qrCodeImage,
+    isReady,
+    groups: groupChats.map(c => ({ id: c.id._serialized, name: c.name }))
+  });
 });
 
-client.on('disconnected', reason => {
-  console.log('🔌 Client was logged out', reason);
-  isReady = false;
+app.post('/tag', async (req, res) => {
+  const groupId = req.body.groupId;
+  if (!groupId) return res.redirect('/');
+
+  try {
+    const chat = await client.getChatById(groupId);
+    if (!chat.isGroup) return res.send('Not a group');
+
+    const mentions = [];
+    let text = '';
+
+    for (let p of chat.participants) {
+      const contact = await client.getContactById(p.id._serialized);
+      mentions.push(contact);
+      text += `@${contact.number} `;
+    }
+
+    await chat.sendMessage(text, { mentions });
+    res.send('✅ Tagged everyone in the group!');
+  } catch (e) {
+    console.error(e);
+    res.send('❌ Failed to tag group.');
+  }
 });
 
-// Initialize WhatsApp client
 client.initialize();
 
-// Routes
-app.get('/', (req, res) => {
-  res.render('index', { qr: qrCodeImage, ready: isReady });
-});
-
-// Start the server
 app.listen(port, () => {
-  console.log(`🌐 Server running on http://localhost:${port}`);
+  console.log(`🌐 Server running at http://localhost:${port}`);
 });
