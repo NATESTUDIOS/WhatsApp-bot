@@ -8,7 +8,7 @@ const port = process.env.PORT || 3000;
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Create WhatsApp client
 const client = new Client({
@@ -19,29 +19,39 @@ const client = new Client({
   }
 });
 
-// Hold QR string
 let qrCodeImage = null;
+let isReady = false;
 
-// Events
 client.on('qr', async (qr) => {
-  console.log('QR RECEIVED');
+  console.log('📷 QR code received');
   qrCodeImage = await qrcode.toDataURL(qr);
+  isReady = false;
 });
 
 client.on('ready', () => {
   console.log('✅ WhatsApp bot is ready!');
   qrCodeImage = null;
+  isReady = true;
 });
 
-// Start WhatsApp client
+client.on('auth_failure', msg => {
+  console.error('❌ Authentication failed:', msg);
+});
+
+client.on('disconnected', reason => {
+  console.log('🔌 Client was logged out', reason);
+  isReady = false;
+});
+
+// Initialize WhatsApp client
 client.initialize();
 
 // Routes
 app.get('/', (req, res) => {
-  res.render('index', { qr: qrCodeImage });
+  res.render('index', { qr: qrCodeImage, ready: isReady });
 });
 
-// Start server
+// Start the server
 app.listen(port, () => {
   console.log(`🌐 Server running on http://localhost:${port}`);
 });
