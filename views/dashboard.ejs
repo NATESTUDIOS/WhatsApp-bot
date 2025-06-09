@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WhatsApp Dashboard</title>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f4f4f4;
+      padding: 2rem;
+      max-width: 600px;
+      margin: auto;
+    }
+    input, button, select {
+      padding: 0.5rem;
+      margin: 0.5rem 0;
+      width: 100%;
+    }
+    button {
+      background: green;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    h2 {
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧠 WhatsApp Bot Dashboard</h1>
+
+  <form method="POST" action="/send-message">
+    <h2>Send Message</h2>
+    <input type="text" name="number" placeholder="Phone number with country code (e.g., 234xxxxxxxxxx)" required />
+    <textarea name="message" placeholder="Your message here" rows="4" required></textarea>
+    <button type="submit">Send Message</button>
+  </form>
+
+  <form method="GET" action="/groups">
+    <h2>Group Tools</h2>
+    <button type="submit">List My Groups</button>
+  </form>
+</body>
+</html>
