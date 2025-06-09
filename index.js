@@ -40,6 +40,7 @@ client.on('ready', async () => {
 
   const chats = await client.getChats();
   chatGroups = chats.filter(chat => chat.isGroup).map(chat => chat.name);
+  console.log('📦 Groups loaded:', chatGroups);
 });
 
 client.initialize();
@@ -57,8 +58,9 @@ app.get('/', (req, res) => {
 
 // Dashboard
 app.get('/dashboard', (req, res) => {
+  console.log("🔁 Serving dashboard. Ready:", ready, "Groups:", chatGroups.length);
   if (!ready) return res.redirect('/');
-  res.render('dashboard', { groups: chatGroups });
+  res.render('dashboard', { groups: chatGroups, ready });
 });
 
 // Send individual message
