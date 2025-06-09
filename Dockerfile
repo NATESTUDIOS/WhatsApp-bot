@@ -1,9 +1,15 @@
-# Use official Node.js with a full OS to support puppeteer
+# Use a Node.js base image with Debian
 FROM node:18-slim
 
-# Add necessary dependencies for puppeteer (Chromium)
+# Set environment variables
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable \
+    PUPPETEER_SKIP_DOWNLOAD=true \
+    NODE_ENV=production
+
+# Install necessary dependencies and Chrome
 RUN apt-get update && apt-get install -y \
     wget \
+    curl \
     gnupg \
     ca-certificates \
     fonts-liberation \
@@ -13,39 +19,34 @@ RUN apt-get update && apt-get install -y \
     libatk1.0-0 \
     libcups2 \
     libdbus-1-3 \
-    libdrm2 \
-    libxkbcommon0 \
+    libgdk-pixbuf2.0-0 \
+    libnspr4 \
+    libnss3 \
+    libx11-xcb1 \
     libxcomposite1 \
     libxdamage1 \
     libxrandr2 \
-    libgbm1 \
-    libgtk-3-0 \
-    libnss3 \
-    libxss1 \
-    libxtst6 \
-    lsb-release \
     xdg-utils \
     --no-install-recommends && \
+    wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - && \
+    echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
+    apt-get update && \
+    apt-get install -y google-chrome-stable && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Set the working directory
+# Set workdir
 WORKDIR /app
 
-# Copy package.json and install dependencies
+# Copy package files and install
 COPY package*.json ./
-RUN npm install
+RUN npm install --production
 
-# Copy the rest of your app
+# Copy the rest of the code
 COPY . .
 
-# Puppeteer does not run as root by default
-# Disable sandboxing if necessary (safe in container)
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV CHROME_BIN=/usr/bin/google-chrome
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
-
-# Expose port if needed
+# Expose the port your app runs on (optional but recommended for Render logs)
 EXPOSE 10000
 
-# Start the bot
+# Start the app
 CMD ["node", "index.js"]
