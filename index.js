@@ -12,103 +12,89 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Create WhatsApp client
+let qrCodeImage = null;
+let ready = false;
+let chatGroups = [];
+
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
   }
 });
 
-let qrCodeImage = null;
-let isClientReady = false;
-
-// WhatsApp events
 client.on('qr', async (qr) => {
   console.log('QR RECEIVED');
   qrCodeImage = await qrcode.toDataURL(qr);
+  ready = false;
 });
 
-client.on('ready', () => {
+client.on('ready', async () => {
   console.log('✅ WhatsApp bot is ready!');
+  ready = true;
   qrCodeImage = null;
-  isClientReady = true;
+
+  // Load groups
+  const chats = await client.getChats();
+  chatGroups = chats.filter(chat => chat.isGroup).map(chat => chat.name);
 });
 
+// Start client
 client.initialize();
 
 // Routes
 app.get('/', (req, res) => {
-  res.render('index', { qr: qrCodeImage });
+  if (qrCodeImage) {
+    res.send(`<img src="${qrCodeImage}" />`);
+  } else {
+    res.redirect('/dashboard');
+  }
 });
 
 app.get('/dashboard', (req, res) => {
-  if (!isClientReady) {
-    return res.send('⏳ WhatsApp client is not ready yet. Scan the QR code on the home page first.');
-  }
-  res.render('dashboard');
+  res.render('dashboard', { qr: qrCodeImage, ready, groups: chatGroups });
 });
 
-// Send message to number
+// Send to number
 app.post('/send-message', async (req, res) => {
-  if (!isClientReady) return res.send('❌ WhatsApp client is not ready.');
-
   const { number, message } = req.body;
-  const chatId = number.replace(/\D/g, '') + '@c.us';
-
   try {
-    await client.sendMessage(chatId, message);
-    res.send('✅ Message sent successfully.');
+    await client.sendMessage(`${number}@c.us`, message);
+    res.redirect('/dashboard');
   } catch (err) {
-    console.error('Send Error:', err);
+    console.error('Send error:', err);
     res.send('❌ Failed to send message.');
   }
 });
 
-// List groups
-app.get('/groups', async (req, res) => {
-  if (!isClientReady) return res.send('❌ WhatsApp client is not ready.');
-
-  try {
-    const chats = await client.getChats();
-    const groups = chats.filter(chat => chat.isGroup);
-
-    let html = '<h1>My WhatsApp Groups</h1>';
-    groups.forEach(group => {
-      html += `<p><b>${group.name}</b>
-        <form method="POST" action="/tag-all" style="display:inline;">
-          <input type="hidden" name="groupId" value="${group.id._serialized}">
-          <button type="submit">Tag All</button>
-        </form></p>`;
-    });
-
-    res.send(html);
-  } catch (err) {
-    console.error('Group List Error:', err);
-    res.send('❌ Failed to fetch groups.');
+// Send to group
+app.post('/send-group-message', async (req, res) => {
+  const { groupName, message } = req.body;
+  const group = (await client.getChats()).find(c => c.isGroup && c.name === groupName);
+  if (group) {
+    await client.sendMessage(group.id._serialized, message);
+    res.redirect('/dashboard');
+  } else {
+    res.send('Group not found.');
   }
 });
 
-// Tag all members in group
-app.post('/tag-all', async (req, res) => {
-  if (!isClientReady) return res.send('❌ WhatsApp client is not ready.');
-
-  const groupId = req.body.groupId;
-  try {
-    const chat = await client.getChatById(groupId);
-    const mentions = chat.participants.map(p => p.id);
-    const text = mentions.map(p => `@${p.user}`).join(' ');
-
-    await chat.sendMessage(text, { mentions });
-    res.send('✅ Tagged all group members.');
-  } catch (err) {
-    console.error('Tag Error:', err);
-    res.send('❌ Failed to tag members.');
+// Tag all members
+app.post('/tag-group', async (req, res) => {
+  const { groupName, message } = req.body;
+  const group = (await client.getChats()).find(c => c.isGroup && c.name === groupName);
+  if (group) {
+    const mentions = group.participants.map(p => p.id._serialized);
+    const fullMsg = `${message || ''}\n\n` + mentions.map(m => `@${m.split('@')[0]}`).join(' ');
+    await client.sendMessage(group.id._serialized, fullMsg, { mentions });
+    res.redirect('/dashboard');
+  } else {
+    res.send('Group not found.');
   }
 });
 
 // Start server
 app.listen(port, () => {
-  console.log(`🌐 Server running on http://localhost:${port}`);
+  console.log(`🌐 Server running at http://localhost:${port}`);
 });
