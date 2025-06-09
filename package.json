@@ -1,5 +1,5 @@
 {
-  "name": "whatsapp-tag-bot",
+  "name": "whatsapp-bot",
   "version": "1.0.0",
   "description": "WhatsApp Group Tagging Bot with Dashboard",
   "main": "index.js",
