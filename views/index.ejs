@@ -1,27 +1,38 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>WhatsApp Bot Login</title>
+  <title>WhatsApp Bot Dashboard</title>
   <style>
-    body {
-      font-family: sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 50px;
-    }
-    img {
-      margin-top: 20px;
-    }
+    body { font-family: sans-serif; text-align: center; padding: 2rem; background: #f7f7f7; }
+    h1 { margin-bottom: 0.5rem; }
+    img { max-width: 300px; margin: 1rem auto; }
+    form { margin-top: 1rem; }
+    select, button { padding: 0.5rem; font-size: 1rem; }
   </style>
 </head>
 <body>
-  <h1>Scan the QR code with WhatsApp</h1>
-  <% if (qr) { %>
-    <img src="<%= qr %>" alt="QR Code" />
+  <h1>🤖 WhatsApp Bot Dashboard</h1>
+
+  <% if (!isReady) { %>
+    <p>Scan this QR code to log in:</p>
+    <% if (qr) { %>
+      <img src="<%= qr %>" alt="QR Code" />
+    <% } else { %>
+      <p>Loading QR code...</p>
+    <% } %>
   <% } else { %>
-    <p>Bot is ready or QR expired.</p>
+    <p><strong>✅ WhatsApp is ready!</strong></p>
+
+    <form action="/tag" method="POST">
+      <label for="groupId">Select a group:</label>
+      <select name="groupId" required>
+        <% groups.forEach(group => { %>
+          <option value="<%= group.id %>"><%= group.name %></option>
+        <% }); %>
+      </select>
+      <br><br>
+      <button type="submit">📢 Tag Everyone</button>
+    </form>
   <% } %>
 </body>
 </html>
