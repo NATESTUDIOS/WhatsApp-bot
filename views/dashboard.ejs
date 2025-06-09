@@ -1,45 +1,125 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>WhatsApp Dashboard</title>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>WhatsApp Bot Dashboard</title>
   <style>
     body {
-      font-family: sans-serif;
-      background: #f4f4f4;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f2f2f2;
+      margin: 0;
       padding: 2rem;
-      max-width: 600px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 700px;
       margin: auto;
+      background: #fff;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.05);
     }
-    input, button, select {
-      padding: 0.5rem;
-      margin: 0.5rem 0;
+
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+      color: #2e7d32;
+    }
+
+    h2 {
+      margin-top: 2rem;
+      font-size: 1.2rem;
+      color: #444;
+    }
+
+    form {
+      margin-bottom: 2rem;
+    }
+
+    input, textarea, select, button {
       width: 100%;
+      padding: 0.75rem;
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1rem;
     }
+
     button {
-      background: green;
+      background-color: #2e7d32;
       color: white;
+      font-weight: bold;
       border: none;
+      transition: background 0.3s;
       cursor: pointer;
     }
-    h2 {
+
+    button:hover {
+      background-color: #1b5e20;
+    }
+
+    .status {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      background: #e0f7e9;
+      color: #2e7d32;
+      display: inline-block;
+      font-weight: bold;
+      margin-bottom: 1.5rem;
+    }
+
+    .footer {
+      text-align: center;
+      font-size: 0.9rem;
+      color: #888;
       margin-top: 2rem;
     }
   </style>
 </head>
 <body>
-  <h1>🧠 WhatsApp Bot Dashboard</h1>
+  <div class="container">
+    <h1>📲 WhatsApp Bot Dashboard</h1>
 
-  <form method="POST" action="/send-message">
-    <h2>Send Message</h2>
-    <input type="text" name="number" placeholder="Phone number with country code (e.g., 234xxxxxxxxxx)" required />
-    <textarea name="message" placeholder="Your message here" rows="4" required></textarea>
-    <button type="submit">Send Message</button>
-  </form>
+    <div class="status">
+      ✅ Bot Status: <%= ready ? 'Connected' : 'Waiting for connection...' %>
+    </div>
 
-  <form method="GET" action="/groups">
-    <h2>Group Tools</h2>
-    <button type="submit">List My Groups</button>
-  </form>
+    <!-- Send to Individual -->
+    <form method="POST" action="/send-message">
+      <h2>📤 Send Message to a Number</h2>
+      <input type="text" name="number" placeholder="Phone number (e.g. 234xxxxxxxxxx)" required />
+      <textarea name="message" placeholder="Your message here..." rows="4" required></textarea>
+      <button type="submit">Send</button>
+    </form>
+
+    <!-- Send to Group -->
+    <form method="POST" action="/send-group-message">
+      <h2>👥 Send Message to a Group</h2>
+      <select name="groupName" required>
+        <% groups.forEach(g => { %>
+          <option value="<%= g %>"><%= g %></option>
+        <% }) %>
+      </select>
+      <textarea name="message" placeholder="Group message..." rows="4" required></textarea>
+      <button type="submit">Send to Group</button>
+    </form>
+
+    <!-- Tag All in Group -->
+    <form method="POST" action="/tag-group">
+      <h2>🔖 Tag Everyone in a Group</h2>
+      <select name="groupName" required>
+        <% groups.forEach(g => { %>
+          <option value="<%= g %>"><%= g %></option>
+        <% }) %>
+      </select>
+      <textarea name="message" placeholder="Optional message to tag with..." rows="3"></textarea>
+      <button type="submit">Tag All Members</button>
+    </form>
+
+    <div class="footer">Made with ❤️ for automation</div>
+  </div>
 </body>
 </html>
