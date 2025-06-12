@@ -18,6 +18,12 @@
       align-items: center;
       justify-content: center;
       min-height: 100vh;
+      animation: fadeIn 0.6s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .card {
@@ -28,12 +34,23 @@
       max-width: 400px;
       width: 100%;
       text-align: center;
+      animation: scaleIn 0.5s ease;
+    }
+
+    @keyframes scaleIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
     }
 
     h1 {
       margin-bottom: 1.5rem;
       font-size: 1.8rem;
       color: #2e7d32;
+      transition: color 0.3s;
+    }
+
+    h1:hover {
+      color: #1b5e20;
     }
 
     .qr-img {
@@ -42,6 +59,12 @@
       border-radius: 12px;
       margin: 1rem auto;
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      animation: floatQR 2s ease-in-out infinite;
+    }
+
+    @keyframes floatQR {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
     }
 
     .connected {
@@ -49,6 +72,12 @@
       font-size: 1.4rem;
       font-weight: bold;
       margin-top: 1rem;
+      animation: blink 2s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
     }
 
     #timer {
