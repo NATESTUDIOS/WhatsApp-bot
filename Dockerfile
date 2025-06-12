@@ -1,4 +1,4 @@
-# Use a Node.js base image with Debian
+# Use a lightweight Node.js base image
 FROM node:18-slim
 
 # Set environment variables
@@ -6,7 +6,7 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable \
     PUPPETEER_SKIP_DOWNLOAD=true \
     NODE_ENV=production
 
-# Install necessary dependencies and Chrome
+# Install dependencies and Chrome
 RUN apt-get update && apt-get install -y \
     wget \
     curl \
@@ -35,18 +35,18 @@ RUN apt-get update && apt-get install -y \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Set workdir
+# Set working directory
 WORKDIR /app
 
-# Copy package files and install
+# Copy package files and install dependencies
 COPY package*.json ./
 RUN npm install --production
 
-# Copy the rest of the code
+# Copy app source code
 COPY . .
 
-# Expose the port your app runs on (optional but recommended for Render logs)
+# Expose app port (must match Render port setting)
 EXPOSE 10000
 
-# Start the app
+# Run the bot
 CMD ["node", "index.js"]
