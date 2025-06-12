@@ -1,21 +1,39 @@
 # 🤖 WhatsApp Group Tagging Bot (24/7 Online)
 
-A simple WhatsApp bot that lets you tag all group members and control it via a dashboard.
+A reliable, easy-to-use WhatsApp bot with a dashboard to send messages, tag group members, and monitor connection status — now with MongoDB logging and animated UI.
 
 ## 🔧 Features
-- Connect to WhatsApp via QR (using whatsapp-web.js)
-- Tag all members of a WhatsApp group
-- Simple dashboard to view QR and control bot
-- Hosted on Render (free)
-- Can be kept online 24/7 using UptimeRobot
+
+- 🔐 Connect to WhatsApp securely via QR code (using `whatsapp-web.js`)
+- 📤 Send messages to individual numbers
+- 👥 Send messages to groups
+- 🔖 Tag all members of any group
+- ✅ Dashboard shows real-time connection status
+- 📊 Logs all sent messages (MongoDB)
+- 💫 Smooth, animated dashboard and login UI (no design change)
+- 🌐 Hosted on [Render](https://render.com)
+- 🔁 Keep bot online 24/7 using [UptimeRobot](https://uptimerobot.com)
+
+## 📸 Screenshots
+
+> Dashboard and login UI have built-in loader animations and QR expiry timers.
 
 ## 🚀 Hosting on Render
-1. Push this code to GitHub.
-2. Go to [https://render.com](https://render.com), create a new Web Service.
-3. Connect your repo, use build command: `npm install` and start command: `node index.js`.
-4. Done! You can ping it with UptimeRobot to keep it alive.
 
-## 📦 Tech Stack
-- Node.js + Express
-- whatsapp-web.js
-- EJS
+1. Push this project to a GitHub repo.
+2. Go to [https://render.com](https://render.com), create a **new Web Service**.
+3. Choose your repo, and configure it:
+   - **Build Command**: `npm install`
+   - **Start Command**: `node index.js`
+4. Add the following environment variables (Render > Environment > Secret Files):
+   - `MONGODB_URI` – your MongoDB connection string
+   - `SESSION_FILE_PATH` (optional) – path to save session JSON
+5. Done! Use UptimeRobot to ping the Render URL every 5 mins to keep it awake.
+
+## ⚙️ Setup Locally
+
+```bash
+git clone https://github.com/your-username/whatsapp-bot.git
+cd whatsapp-bot
+npm install
+node index.js
