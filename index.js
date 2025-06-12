@@ -9,14 +9,15 @@ const bodyParser = require('body-parser');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Environment Variable
-const MONGO_URI = process.env.MONGO_URI;
+// Environment Variable (with fallback for dev)
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/whatsapp-sessions';
 
 // View engine and static files
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json()); // Support JSON POST bodies
 
 // WhatsApp bot state
 let qrCodeImage = null;
@@ -57,13 +58,14 @@ client.on('ready', async () => {
   qrCodeImage = null;
 
   const chats = await client.getChats();
-  chatGroups = chats.filter(chat => chat.isGroup).map(chat => chat.name);
-  console.log('📦 Groups loaded:', chatGroups);
+  chatGroups = chats
+    .filter(chat => chat.isGroup)
+    .map(chat => chat.name || chat.id.user); // fallback if group has no name
+  console.log('📦 Groups loaded:', chatGroups.length);
 });
 
 // Initialize client
 client.initialize();
-
 
 // ROUTES
 
@@ -91,7 +93,7 @@ app.post('/send-message', async (req, res) => {
     res.redirect('/dashboard');
   } catch (err) {
     console.error('❌ Failed to send message:', err);
-    res.send('Failed to send message.');
+    res.status(500).send('Failed to send message.');
   }
 });
 
@@ -100,10 +102,15 @@ app.post('/send-group-message', async (req, res) => {
   const { groupName, message } = req.body;
   const group = (await client.getChats()).find(c => c.isGroup && c.name === groupName);
   if (group) {
-    await client.sendMessage(group.id._serialized, message);
-    res.redirect('/dashboard');
+    try {
+      await client.sendMessage(group.id._serialized, message);
+      res.redirect('/dashboard');
+    } catch (err) {
+      console.error('❌ Failed to send group message:', err);
+      res.status(500).send('Failed to send group message.');
+    }
   } else {
-    res.send('Group not found.');
+    res.status(404).send('Group not found.');
   }
 });
 
@@ -112,16 +119,26 @@ app.post('/tag-group', async (req, res) => {
   const { groupName, message } = req.body;
   const group = (await client.getChats()).find(c => c.isGroup && c.name === groupName);
   if (group) {
-    const mentions = group.participants.map(p => p.id._serialized);
-    const fullMsg = `${message || ''}\n\n` + mentions.map(m => `@${m.split('@')[0]}`).join(' ');
-    await client.sendMessage(group.id._serialized, fullMsg, { mentions });
-    res.redirect('/dashboard');
+    try {
+      const mentions = group.participants.map(p => p.id._serialized);
+      const fullMsg = `${message || ''}\n\n` + mentions.map(m => `@${m.split('@')[0]}`).join(' ');
+      await client.sendMessage(group.id._serialized, fullMsg, { mentions });
+      res.redirect('/dashboard');
+    } catch (err) {
+      console.error('❌ Failed to tag group:', err);
+      res.status(500).send('Failed to tag group.');
+    }
   } else {
-    res.send('Group not found.');
+    res.status(404).send('Group not found.');
   }
 });
 
 // Start server
 app.listen(port, () => {
   console.log(`🚀 Server running at http://localhost:${port}`);
+});
+
+// Catch unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🛑 Unhandled Rejection:', reason);
 });
