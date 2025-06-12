@@ -21,19 +21,18 @@ let qrCodeImage = null;
 let ready = false;
 let chatGroups = [];
 
-// Connect to MongoDB
 mongoose.connect(MONGO_URI)
   .then(() => console.log('✅ MongoDB connected'))
   .catch((err) => console.error('❌ MongoDB connection error:', err));
 
-// Initialize WhatsApp RemoteAuth
+// Initialize store and client
 const store = new MongoStore({ mongoose });
 
-const client = new Client({
+let client = new Client({
   authStrategy: new RemoteAuth({
     store,
     backupSyncIntervalMs: 60000,
-    clientId: 'debug-client-' + Date.now() // Force new session (optional)
+    clientId: 'debug-client-' + Date.now()
   }),
   puppeteer: {
     headless: true,
@@ -106,7 +105,6 @@ app.get('/status', (req, res) => {
   res.json({ connected: ready });
 });
 
-// Diagnostics with Reset Button
 app.get('/diagnostics', (req, res) => {
   const html = `
     <h1>📊 WhatsApp Diagnostics</h1>
@@ -122,10 +120,58 @@ app.get('/diagnostics', (req, res) => {
   res.send(html);
 });
 
-// POST reset-session
+// ✅ Fixed reset-session route
 app.post('/reset-session', async (req, res) => {
-  await store.clear();
-  res.send('<p>✅ Session cleared. Please restart the server to re-authenticate.</p><a href="/diagnostics">Back to Diagnostics</a>');
+  try {
+    if (client) {
+      await client.destroy();
+      console.log('🔌 Client destroyed');
+    }
+
+    if (store && store.sessionCollection) {
+      await store.sessionCollection.deleteMany({});
+      console.log('🧹 Session collection cleared');
+    }
+
+    client = null;
+    qrCodeImage = null;
+    ready = false;
+    chatGroups = [];
+
+    // Reinitialize client
+    client = new Client({
+      authStrategy: new RemoteAuth({
+        store,
+        backupSyncIntervalMs: 60000,
+        clientId: 'debug-client-' + Date.now()
+      }),
+      puppeteer: {
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      }
+    });
+
+    client.on('qr', async (qr) => {
+      qrCodeImage = await qrcode.toDataURL(qr);
+      ready = false;
+    });
+
+    client.on('ready', async () => {
+      if (client.info) {
+        ready = true;
+        qrCodeImage = null;
+
+        const chats = await client.getChats();
+        chatGroups = chats.filter(chat => chat.isGroup).map(chat => chat.name || chat.id.user);
+      }
+    });
+
+    client.initialize();
+    res.redirect('/diagnostics');
+  } catch (error) {
+    console.error('❌ Failed to reset session:', error);
+    res.status(500).send('Failed to reset session.');
+  }
 });
 
 app.post('/send-message', async (req, res) => {
@@ -144,7 +190,6 @@ app.post('/send-group-message', async (req, res) => {
   try {
     const group = (await client.getChats()).find(c => c.isGroup && c.name === groupName);
     if (!group) return res.status(404).send('Group not found.');
-
     await client.sendMessage(group.id._serialized, message);
     res.redirect('/dashboard');
   } catch (err) {
@@ -158,7 +203,6 @@ app.post('/tag-group', async (req, res) => {
   try {
     const group = (await client.getChats()).find(c => c.isGroup && c.name === groupName);
     if (!group) return res.status(404).send('Group not found.');
-
     const mentions = group.participants.map(p => p.id._serialized);
     const taggedMessage = `${message || ''}\n\n` + mentions.map(m => `@${m.split('@')[0]}`).join(' ');
     await client.sendMessage(group.id._serialized, taggedMessage, { mentions });
@@ -169,7 +213,6 @@ app.post('/tag-group', async (req, res) => {
   }
 });
 
-// Server
 app.listen(port, () => {
   console.log(`🚀 Server running at http://localhost:${port}`);
 });
