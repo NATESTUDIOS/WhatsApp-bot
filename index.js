@@ -31,7 +31,7 @@ const store = new MongoStore({ mongoose });
 const client = new Client({
   authStrategy: new RemoteAuth({
     store,
-    backupSyncIntervalMs: 30000,
+    backupSyncIntervalMs: 60000,
   }),
   puppeteer: {
     headless: true,
