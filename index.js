@@ -8,18 +8,15 @@ const bodyParser = require('body-parser');
 
 const app = express();
 const port = process.env.PORT || 3000;
-
-// Environment Variable (with fallback for dev)
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/whatsapp-sessions';
 
-// View engine and static files
+// View engine setup
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.json()); // Support JSON POST bodies
+app.use(express.json());
 
-// WhatsApp bot state
 let qrCodeImage = null;
 let ready = false;
 let chatGroups = [];
@@ -29,10 +26,8 @@ mongoose.connect(MONGO_URI)
   .then(() => console.log('✅ MongoDB connected'))
   .catch((err) => console.error('❌ MongoDB connection error:', err));
 
-// Initialize MongoStore for WhatsApp session
+// Initialize WhatsApp RemoteAuth
 const store = new MongoStore({ mongoose });
-
-// Initialize WhatsApp client with RemoteAuth
 const client = new Client({
   authStrategy: new RemoteAuth({
     store,
@@ -44,14 +39,13 @@ const client = new Client({
   }
 });
 
-// QR code event
+// WhatsApp Events
 client.on('qr', async (qr) => {
   console.log('📸 QR received');
   qrCodeImage = await qrcode.toDataURL(qr);
   ready = false;
 });
 
-// Ready event
 client.on('ready', async () => {
   console.log('✅ WhatsApp client is ready');
   ready = true;
@@ -60,16 +54,14 @@ client.on('ready', async () => {
   const chats = await client.getChats();
   chatGroups = chats
     .filter(chat => chat.isGroup)
-    .map(chat => chat.name || chat.id.user); // fallback if group has no name
+    .map(chat => chat.name || chat.id.user);
+
   console.log('📦 Groups loaded:', chatGroups.length);
 });
 
-// Initialize client
 client.initialize();
 
-// ROUTES
-
-// Root: Show QR or redirect to dashboard
+// Routes
 app.get('/', (req, res) => {
   if (!ready) {
     res.render('index', { qr: qrCodeImage, ready });
@@ -78,14 +70,11 @@ app.get('/', (req, res) => {
   }
 });
 
-// Dashboard
 app.get('/dashboard', (req, res) => {
-  console.log("🔁 Serving dashboard. Ready:", ready, "Groups:", chatGroups.length);
   if (!ready) return res.redirect('/');
   res.render('dashboard', { groups: chatGroups, ready });
 });
 
-// Send individual message
 app.post('/send-message', async (req, res) => {
   const { number, message } = req.body;
   try {
@@ -97,48 +86,41 @@ app.post('/send-message', async (req, res) => {
   }
 });
 
-// Send message to group
 app.post('/send-group-message', async (req, res) => {
   const { groupName, message } = req.body;
-  const group = (await client.getChats()).find(c => c.isGroup && c.name === groupName);
-  if (group) {
-    try {
-      await client.sendMessage(group.id._serialized, message);
-      res.redirect('/dashboard');
-    } catch (err) {
-      console.error('❌ Failed to send group message:', err);
-      res.status(500).send('Failed to send group message.');
-    }
-  } else {
-    res.status(404).send('Group not found.');
+  try {
+    const group = (await client.getChats()).find(c => c.isGroup && c.name === groupName);
+    if (!group) return res.status(404).send('Group not found.');
+
+    await client.sendMessage(group.id._serialized, message);
+    res.redirect('/dashboard');
+  } catch (err) {
+    console.error('❌ Failed to send group message:', err);
+    res.status(500).send('Failed to send group message.');
   }
 });
 
-// Tag all group members
 app.post('/tag-group', async (req, res) => {
   const { groupName, message } = req.body;
-  const group = (await client.getChats()).find(c => c.isGroup && c.name === groupName);
-  if (group) {
-    try {
-      const mentions = group.participants.map(p => p.id._serialized);
-      const fullMsg = `${message || ''}\n\n` + mentions.map(m => `@${m.split('@')[0]}`).join(' ');
-      await client.sendMessage(group.id._serialized, fullMsg, { mentions });
-      res.redirect('/dashboard');
-    } catch (err) {
-      console.error('❌ Failed to tag group:', err);
-      res.status(500).send('Failed to tag group.');
-    }
-  } else {
-    res.status(404).send('Group not found.');
+  try {
+    const group = (await client.getChats()).find(c => c.isGroup && c.name === groupName);
+    if (!group) return res.status(404).send('Group not found.');
+
+    const mentions = group.participants.map(p => p.id._serialized);
+    const taggedMessage = `${message || ''}\n\n` + mentions.map(m => `@${m.split('@')[0]}`).join(' ');
+    await client.sendMessage(group.id._serialized, taggedMessage, { mentions });
+    res.redirect('/dashboard');
+  } catch (err) {
+    console.error('❌ Failed to tag group:', err);
+    res.status(500).send('Failed to tag group.');
   }
 });
 
-// Start server
+// Server
 app.listen(port, () => {
   console.log(`🚀 Server running at http://localhost:${port}`);
 });
 
-// Catch unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason) => {
   console.error('🛑 Unhandled Rejection:', reason);
 });
