@@ -1,5 +1,7 @@
 const express = require('express');
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, RemoteAuth } = require('whatsapp-web.js');
+const { MongoStore } = require('wwebjs-mongo');
+const mongoose = require('mongoose');
 const qrcode = require('qrcode');
 const path = require('path');
 const bodyParser = require('body-parser');
@@ -7,7 +9,10 @@ const bodyParser = require('body-parser');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Setup view engine and static folder
+// Environment Variable
+const MONGO_URI = process.env.MONGO_URI;
+
+// View engine and static files
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static('public'));
@@ -18,21 +23,34 @@ let qrCodeImage = null;
 let ready = false;
 let chatGroups = [];
 
-// Initialize WhatsApp client
+// Connect to MongoDB
+mongoose.connect(MONGO_URI)
+  .then(() => console.log('✅ MongoDB connected'))
+  .catch((err) => console.error('❌ MongoDB connection error:', err));
+
+// Initialize MongoStore for WhatsApp session
+const store = new MongoStore({ mongoose });
+
+// Initialize WhatsApp client with RemoteAuth
 const client = new Client({
-  authStrategy: new LocalAuth(),
+  authStrategy: new RemoteAuth({
+    store,
+    backupSyncIntervalMs: 30000,
+  }),
   puppeteer: {
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   }
 });
 
+// QR code event
 client.on('qr', async (qr) => {
   console.log('📸 QR received');
   qrCodeImage = await qrcode.toDataURL(qr);
   ready = false;
 });
 
+// Ready event
 client.on('ready', async () => {
   console.log('✅ WhatsApp client is ready');
   ready = true;
@@ -43,7 +61,9 @@ client.on('ready', async () => {
   console.log('📦 Groups loaded:', chatGroups);
 });
 
+// Initialize client
 client.initialize();
+
 
 // ROUTES
 
@@ -103,5 +123,5 @@ app.post('/tag-group', async (req, res) => {
 
 // Start server
 app.listen(port, () => {
-  console.log(`🚀 Server is running at http://localhost:${port}`);
+  console.log(`🚀 Server running at http://localhost:${port}`);
 });
