@@ -11,6 +11,12 @@
       margin: 0;
       padding: 2rem;
       color: #333;
+      animation: fadeIn 0.6s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .container {
@@ -20,22 +26,40 @@
       padding: 2rem;
       border-radius: 12px;
       box-shadow: 0 0 20px rgba(0,0,0,0.05);
+      animation: zoomIn 0.6s ease;
+    }
+
+    @keyframes zoomIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
     }
 
     h1 {
       text-align: center;
       margin-bottom: 2rem;
       color: #2e7d32;
+      transition: color 0.3s ease;
+    }
+
+    h1:hover {
+      color: #1b5e20;
     }
 
     h2 {
       margin-top: 2rem;
       font-size: 1.2rem;
       color: #444;
+      transition: color 0.3s ease;
     }
 
     form {
       margin-bottom: 2rem;
+      animation: slideUp 0.5s ease;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     input, textarea, select, button {
@@ -46,6 +70,12 @@
       border: 1px solid #ccc;
       border-radius: 6px;
       font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: #2e7d32;
+      box-shadow: 0 0 6px rgba(46, 125, 50, 0.2);
     }
 
     button {
@@ -53,12 +83,13 @@
       color: white;
       font-weight: bold;
       border: none;
-      transition: background 0.3s;
+      transition: background 0.3s ease, transform 0.2s ease;
       cursor: pointer;
     }
 
     button:hover {
       background-color: #1b5e20;
+      transform: scale(1.03);
     }
 
     .status {
@@ -69,6 +100,12 @@
       display: inline-block;
       font-weight: bold;
       margin-bottom: 1.5rem;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.03); opacity: 0.8; }
     }
 
     .footer {
@@ -76,6 +113,12 @@
       font-size: 0.9rem;
       color: #888;
       margin-top: 2rem;
+      opacity: 0.7;
+      transition: opacity 0.3s ease;
+    }
+
+    .footer:hover {
+      opacity: 1;
     }
   </style>
 </head>
