@@ -31,7 +31,7 @@ const store = new MongoStore({ mongoose });
 const client = new Client({
   authStrategy: new RemoteAuth({
     store,
-    backupSyncIntervalMs: 60000,
+    backupSyncIntervalMs: 60000, // must be >= 60000
   }),
   puppeteer: {
     headless: true,
@@ -59,7 +59,26 @@ client.on('ready', async () => {
   console.log('📦 Groups loaded:', chatGroups.length);
 });
 
-client.initialize();
+client.on('disconnected', (reason) => {
+  console.warn('⚠️ WhatsApp disconnected:', reason);
+  ready = false;
+});
+
+client.on('auth_failure', (msg) => {
+  console.error('❌ Authentication failure:', msg);
+  ready = false;
+});
+
+client.on('remote_session_saved', () => {
+  console.log('💾 Remote session saved');
+});
+
+try {
+  client.initialize();
+} catch (err) {
+  console.error('❌ WhatsApp failed to initialize:', err);
+  ready = false;
+}
 
 // Routes
 app.get('/', (req, res) => {
@@ -73,6 +92,10 @@ app.get('/', (req, res) => {
 app.get('/dashboard', (req, res) => {
   if (!ready) return res.redirect('/');
   res.render('dashboard', { groups: chatGroups, ready });
+});
+
+app.get('/status', (req, res) => {
+  res.json({ connected: ready });
 });
 
 app.post('/send-message', async (req, res) => {
