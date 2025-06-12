@@ -28,10 +28,12 @@ mongoose.connect(MONGO_URI)
 
 // Initialize WhatsApp RemoteAuth
 const store = new MongoStore({ mongoose });
+
 const client = new Client({
   authStrategy: new RemoteAuth({
     store,
-    backupSyncIntervalMs: 60000, // must be >= 60000
+    backupSyncIntervalMs: 60000,
+    clientId: 'debug-client-' + Date.now() // Force new session (optional)
   }),
   puppeteer: {
     headless: true,
@@ -47,16 +49,21 @@ client.on('qr', async (qr) => {
 });
 
 client.on('ready', async () => {
-  console.log('✅ WhatsApp client is ready');
-  ready = true;
-  qrCodeImage = null;
+  if (client.info) {
+    console.log('✅ WhatsApp client connected as:', client.info.wid.user);
+    ready = true;
+    qrCodeImage = null;
 
-  const chats = await client.getChats();
-  chatGroups = chats
-    .filter(chat => chat.isGroup)
-    .map(chat => chat.name || chat.id.user);
+    const chats = await client.getChats();
+    chatGroups = chats
+      .filter(chat => chat.isGroup)
+      .map(chat => chat.name || chat.id.user);
 
-  console.log('📦 Groups loaded:', chatGroups.length);
+    console.log('📦 Groups loaded:', chatGroups.length);
+  } else {
+    console.warn('⚠️ Ready triggered, but client.info is undefined.');
+    ready = false;
+  }
 });
 
 client.on('disconnected', (reason) => {
@@ -73,6 +80,7 @@ client.on('remote_session_saved', () => {
   console.log('💾 Remote session saved');
 });
 
+// Initialize client
 try {
   client.initialize();
 } catch (err) {
@@ -96,6 +104,28 @@ app.get('/dashboard', (req, res) => {
 
 app.get('/status', (req, res) => {
   res.json({ connected: ready });
+});
+
+// Diagnostics with Reset Button
+app.get('/diagnostics', (req, res) => {
+  const html = `
+    <h1>📊 WhatsApp Diagnostics</h1>
+    <p><strong>Connected:</strong> ${!!client.info}</p>
+    <p><strong>Ready:</strong> ${ready}</p>
+    <p><strong>QR Available:</strong> ${!!qrCodeImage}</p>
+    <p><strong>Client Info:</strong> ${client.info ? JSON.stringify(client.info, null, 2) : 'N/A'}</p>
+    <form method="POST" action="/reset-session" onsubmit="return confirm('Reset session? You will need to re-authenticate.')">
+      <button type="submit" style="padding: 10px 20px; margin-top: 10px; background: red; color: white; border: none; border-radius: 4px;">🔄 Reset Session</button>
+    </form>
+    <br><a href="/">← Back to Home</a>
+  `;
+  res.send(html);
+});
+
+// POST reset-session
+app.post('/reset-session', async (req, res) => {
+  await store.clear();
+  res.send('<p>✅ Session cleared. Please restart the server to re-authenticate.</p><a href="/diagnostics">Back to Diagnostics</a>');
 });
 
 app.post('/send-message', async (req, res) => {
