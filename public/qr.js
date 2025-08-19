@@ -1,44 +1,48 @@
-let timer = null;
+let countdownTimer = null;
 
 async function fetchStatus() {
   const res = await fetch("/api/status");
   const data = await res.json();
+
   const statusDiv = document.getElementById("status");
 
   if (data.connected) {
-    // Clear any old timer
-    if (timer) clearInterval(timer);
+    // clear any countdown timer
+    if (countdownTimer) {
+      clearInterval(countdownTimer);
+      countdownTimer = null;
+    }
+
     statusDiv.innerHTML = `
       <h2>✅ Connected</h2>
       <p>Your bot is running successfully.</p>
     `;
-  } else if (data.qr) {
+  } else {
     statusDiv.innerHTML = `
       <h2>📷 Scan QR to Connect</h2>
       <img src="${data.qr}" class="qr" />
-      <p class="countdown">Expires in <span id="time">${Math.floor(data.timeLeft / 1000)}</span> seconds</p>
+      <p class="countdown">Expires in <span id="time">${Math.floor(data.timeLeft/1000)}</span> seconds</p>
     `;
 
     let timeLeft = Math.floor(data.timeLeft / 1000);
 
-    if (timer) clearInterval(timer);
-    timer = setInterval(() => {
+    // clear previous timer if still running
+    if (countdownTimer) clearInterval(countdownTimer);
+
+    countdownTimer = setInterval(() => {
       if (timeLeft <= 0) {
-        clearInterval(timer);
-        fetchStatus(); // reload QR when expired
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+        fetchStatus(); // refresh when expired
       } else {
         document.getElementById("time").textContent = timeLeft;
         timeLeft--;
       }
     }, 1000);
-  } else {
-    statusDiv.innerHTML = `
-      <h2>⏳ Waiting for QR...</h2>
-      <p>Please wait while we generate a new QR code.</p>
-    `;
   }
 }
 
-// Initial load + poll every 5s
+// Initial load
 fetchStatus();
+// Keep checking every 5s
 setInterval(fetchStatus, 5000);
