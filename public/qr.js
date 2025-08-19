@@ -36,6 +36,6 @@ async function fetchStatus() {
   }
 }
 
-// Keep polling every 5s in case status changes
+// Poll every 5s in case status changes
 setInterval(fetchStatus, 5000);
 fetchStatus();
