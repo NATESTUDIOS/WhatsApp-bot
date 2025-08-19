@@ -1,40 +1,49 @@
 const express = require("express");
 const qrcode = require("qrcode");
 const { Client, LocalAuth } = require("whatsapp-web.js");
+const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// WhatsApp Client
+// Serve frontend
+app.use(express.static(path.join(__dirname, "public")));
+
 const client = new Client({
     authStrategy: new LocalAuth({ dataPath: "./session" }),
     puppeteer: {
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    }
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    },
 });
 
 let qrCodeData = null;
+let qrGeneratedAt = null;
 let isReady = false;
 
 client.on("qr", async (qr) => {
-    console.log("⚡ Scan this QR code to connect");
+    console.log("⚡ New QR code generated");
     qrCodeData = await qrcode.toDataURL(qr);
+    qrGeneratedAt = Date.now();
 });
 
 client.on("ready", () => {
     console.log("✅ WhatsApp bot is ready!");
     isReady = true;
     qrCodeData = null;
+    qrGeneratedAt = null;
 });
 
-client.on("message", async msg => {
+// Example command
+client.on("message", async (msg) => {
     if (msg.body === "!tagall") {
         const chat = await msg.getChat();
         if (chat.isGroup) {
             let text = "";
             let mentions = [];
             for (let participant of chat.participants) {
-                const contact = await client.getContactById(participant.id._serialized);
+                const contact = await client.getContactById(
+                    participant.id._serialized
+                );
                 mentions.push(contact);
                 text += `@${participant.id.user} `;
             }
@@ -47,14 +56,18 @@ client.on("message", async msg => {
 
 client.initialize();
 
-// Dashboard
-app.get("/", (req, res) => {
+// API endpoint for frontend to fetch status/QR
+app.get("/status", (req, res) => {
     if (isReady) {
-        res.send("<h2>✅ Bot is connected to WhatsApp!</h2>");
+        res.json({ status: "ready" });
     } else if (qrCodeData) {
-        res.send(`<h2>Scan QR Code to connect</h2><img src="${qrCodeData}" />`);
+        res.json({
+            status: "qr",
+            qr: qrCodeData,
+            remaining: 60 - Math.floor((Date.now() - qrGeneratedAt) / 1000),
+        });
     } else {
-        res.send("<h2>⌛ Initializing bot...</h2>");
+        res.json({ status: "init" });
     }
 });
 
